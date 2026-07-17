@@ -1,6 +1,5 @@
 import asyncio
 import httpx
-import re
 from threading import Thread
 from flask import Flask
 from telegram import Update, ReplyKeyboardRemove
@@ -15,8 +14,6 @@ AI_BASE_URL = "https://api.deepseek.com/chat/completions"
 AI_MODEL = "deepseek-chat"
 REQUIRED_CHANNEL = "gs0z1"
 
-ADMIN_CHAT_ID = 7857605443
-
 app = Flask(__name__)
 @app.route('/')
 def home():
@@ -27,7 +24,6 @@ def run_web():
 
 user_conversations = {}
 user_ui_lang = {}
-user_contact_waits = set()
 
 async def show_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -50,7 +46,6 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     user_id = query.from_user.id
     chat_id = query.message.chat_id
-    username = query.from_user.username
 
     if query.data == 'check_member':
         if await utils.is_channel_member(context.bot, user_id, REQUIRED_CHANNEL):
@@ -67,15 +62,24 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
 
     elif query.data == 'contact':
-        user_contact_waits.add(chat_id)
-        await query.edit_message_text(text=utils.get_text(user_id, 'contact_entry_msg', user_ui_lang))
+        # ===== 彻底的空壳 =====
+        # 不编辑任何消息，没有任何文字反馈，按钮点击后直接消失。
+        return
 
     elif query.data == 'gsai':
         user_conversations[chat_id] = []
-        await query.edit_message_text(text=utils.get_text(user_id, 'gsai_welcome', user_ui_lang), reply_markup=None)
+        
+        # 1. 把主页内联卡片改成 "有什么可以帮您" (不附带任何键盘，变成纯文本)
+        await query.edit_message_text(
+            text=utils.get_text(user_id, 'gsai_welcome', user_ui_lang), 
+            reply_markup=None
+        )
+        
+        # 2. 立刻发一条极短的新消息（用不显眼的 "." 代替空字符），专门用来挂载【退出 AI 对话】的底部键盘
+        # 只要安卓端看到新消息，底部键盘就100%会弹出来！
         await context.bot.send_message(
             chat_id=chat_id, 
-            text=" ", 
+            text=".", 
             reply_markup=utils.get_chat_reply_keyboard()
         )
 
@@ -112,15 +116,16 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
             msg = utils.get_text(user_id, 'lang_sel_success_en', user_ui_lang)
         await query.edit_message_text(text=msg, reply_markup=utils.get_main_keyboard(user_id, user_ui_lang))
 
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def chat_with_ai(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     chat_id = update.message.chat_id
     user_text = update.message.text
 
-    # ===== 关键修改：优先级最高的“退出 AI 对话”判断 =====
+    # 点底部菜单退出
     if user_text == '退出 AI 对话':
         if chat_id in user_conversations:
             del user_conversations[chat_id]
+        
         confirm_msg = await update.message.reply_text("已退出 AI 对话", reply_markup=ReplyKeyboardRemove())
         await update.message.reply_text(
             utils.get_text(user_id, 'main_msg', user_ui_lang), 
@@ -128,6 +133,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode='HTML',
             disable_web_page_preview=True
         )
+        # 2秒后自动消散退出提示
         await asyncio.sleep(2)
         try:
             await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=confirm_msg.message_id)
@@ -135,39 +141,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             pass
         return
 
-    # ===== 双向联系逻辑 =====
-    if chat_id in user_contact_waits:
-        username = update.effective_user.username or "未设置"
-        try:
-            await context.bot.send_message(
-                chat_id=ADMIN_CHAT_ID, 
-                text=f"📩 收到新联系申请\n用户：@{username} (ID: `{user_id}`)\n\n请使用“右滑 -> 回复”此条消息来给该用户留言。",
-                parse_mode='Markdown'
-            )
-            await update.message.reply_text("✅ 消息已送达，请等待回复。")
-        except Exception as e:
-            await update.message.reply_text(f"❌ 消息发送失败: {e}")
-        user_contact_waits.discard(chat_id)
-        return
-
-    # ===== 管理员回复逻辑 =====
-    if user_id == ADMIN_CHAT_ID and update.message.reply_to_message:
-        replied_msg = update.message.reply_to_message.text
-        if "用户：@" in replied_msg and "(ID: " in replied_msg:
-            match = re.search(r"ID: `(\d+)`", replied_msg)
-            if match:
-                target_user_id = int(match.group(1))
-                await context.bot.send_message(chat_id=target_user_id, text=user_text)
-                await update.message.reply_text("✅ 已成功将您的回复转发给该用户。")
-            else:
-                await update.message.reply_text(utils.get_text(user_id, 'contact_reply_error', user_ui_lang))
-        else:
-            await update.message.reply_text(utils.get_text(user_id, 'contact_reply_error', user_ui_lang))
-        return
-
-    # ===== AI 对话逻辑 =====
     if chat_id in user_conversations:
-        if user_text == " ":
+        # 过滤掉为了唤起底部键盘而发的那条 "."
+        if user_text == ".":
             return
 
         thinking_msg = await update.message.reply_text(utils.get_text(user_id, 'gsai_thinking', user_ui_lang))
@@ -193,14 +169,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     await thinking_msg.edit_text(f"❌ AI 接口调用失败 (错误码：{response.status_code})")
         except Exception as e:
             await thinking_msg.edit_text(f"❌ 网络出现错误：{str(e)}")
-        return
 
 def main():
     Thread(target=run_web).start()
     application = Application.builder().token(BOT_TOKEN).build()
     application.add_handler(CommandHandler("start", show_menu))
     application.add_handler(CallbackQueryHandler(button_click))
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, chat_with_ai))
     print("✅ 机器人已上线，去 Telegram 发 /start 测试吧！")
     application.run_polling()
 
