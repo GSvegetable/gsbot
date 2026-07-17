@@ -1,19 +1,12 @@
-import asyncio
-import httpx
 from threading import Thread
 from flask import Flask
-from telegram import Update, ReplyKeyboardRemove
-from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
+from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters
 
-from lang import UI_LANGUAGES
-import utils
+# 引入配置和处理逻辑
+import config
+import handlers
 
-BOT_TOKEN = "8922179149:AAFy_m3SI1StQjn66ZGyIHQ3sLK1iKXINRw"
-AI_API_KEY = "sk-258fd45a189545d6b0d2b383f14094a9"
-AI_BASE_URL = "https://api.deepseek.com/chat/completions"
-AI_MODEL = "deepseek-chat"
-REQUIRED_CHANNEL = "gs0z1"
-
+# ================= 保活 Web 服务 =================
 app = Flask(__name__)
 @app.route('/')
 def home():
@@ -21,154 +14,20 @@ def home():
 
 def run_web():
     app.run(host="0.0.0.0", port=10000)
-
-user_conversations = {}
-user_ui_lang = {}
-
-async def show_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    if not await utils.is_channel_member(context.bot, user_id, REQUIRED_CHANNEL):
-        await update.message.reply_text(
-            utils.get_text(user_id, 'channel_msg', user_ui_lang), 
-            reply_markup=utils.get_channel_keyboard(user_id, user_ui_lang, f"https://t.me/{REQUIRED_CHANNEL}"), 
-            parse_mode='HTML'
-        )
-        return
-    await update.message.reply_text(
-        utils.get_text(user_id, 'main_msg', user_ui_lang), 
-        reply_markup=utils.get_main_keyboard(user_id, user_ui_lang), 
-        parse_mode='HTML',
-        disable_web_page_preview=True
-    )
-
-async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    user_id = query.from_user.id
-    chat_id = query.message.chat_id
-
-    if query.data == 'check_member':
-        if await utils.is_channel_member(context.bot, user_id, REQUIRED_CHANNEL):
-            # ====== 修复点 1：新用户检测成功回主页，禁用名片预览 ======
-            await query.edit_message_text(
-                utils.get_text(user_id, 'main_msg', user_ui_lang), 
-                reply_markup=utils.get_main_keyboard(user_id, user_ui_lang), 
-                parse_mode='HTML',
-                disable_web_page_preview=True
-            )
-        else:
-            await query.edit_message_text(
-                utils.get_text(user_id, 'channel_msg', user_ui_lang), 
-                reply_markup=utils.get_channel_keyboard(user_id, user_ui_lang, f"https://t.me/{REQUIRED_CHANNEL}"), 
-                parse_mode='HTML'
-            )
-
-    elif query.data == 'custom_btn':
-        await query.edit_message_text(
-            text=utils.get_text(user_id, 'custom_title', user_ui_lang), 
-            reply_markup=utils.get_custom_keyboard(user_id, user_ui_lang)
-        )
-
-    elif query.data == 'back_home':
-        # ====== 修复点 2：从定制菜单返回主菜单，禁用名片预览 ======
-        await query.edit_message_text(
-            text=utils.get_text(user_id, 'main_msg', user_ui_lang), 
-            reply_markup=utils.get_main_keyboard(user_id, user_ui_lang), 
-            parse_mode='HTML',
-            disable_web_page_preview=True
-        )
-
-    elif query.data in ['contact', 'group_manage', 'contact_sub', 'query', 'resource', 'checkin', 'ai_sub']:
-        pass
-
-    elif query.data == 'gsai':
-        user_conversations[chat_id] = []
-        await query.edit_message_text(
-            text=utils.get_text(user_id, 'gsai_welcome', user_ui_lang),
-            reply_markup=utils.get_chat_reply_keyboard()
-        )
-
-    elif query.data == 'setting':
-        await query.edit_message_text(
-            text=utils.get_text(user_id, 'setting_title', user_ui_lang), 
-            reply_markup=utils.get_setting_keyboard(user_id, user_ui_lang)
-        )
-
-    elif query.data == 'setting_lang':
-        await query.edit_message_text(
-            text=utils.get_text(user_id, 'lang_title', user_ui_lang), 
-            reply_markup=utils.get_lang_keyboard(user_id, user_ui_lang)
-        )
-
-    elif query.data == 'lang_back':
-        await query.edit_message_text(
-            text=utils.get_text(user_id, 'back_msg', user_ui_lang), 
-            reply_markup=utils.get_main_keyboard(user_id, user_ui_lang)
-        )
-
-    elif query.data.startswith('lang_'):
-        if query.data == 'lang_zh':
-            user_ui_lang[user_id] = 'zh'
-            msg = utils.get_text(user_id, 'lang_sel_success', user_ui_lang)
-        elif query.data == 'lang_en':
-            user_ui_lang[user_id] = 'en'
-            msg = utils.get_text(user_id, 'lang_sel_success_en', user_ui_lang)
-        await query.edit_message_text(text=msg, reply_markup=utils.get_main_keyboard(user_id, user_ui_lang))
-
-async def chat_with_ai(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    chat_id = update.message.chat_id
-    user_text = update.message.text
-
-    if user_text == '退出 AI 对话':
-        if chat_id in user_conversations:
-            del user_conversations[chat_id]
-        confirm_msg = await update.message.reply_text("已退出 AI 对话", reply_markup=ReplyKeyboardRemove())
-        # ====== 修复点 3：从 AI 退出回主菜单，禁用名片预览 ======
-        await update.message.reply_text(
-            utils.get_text(user_id, 'main_msg', user_ui_lang), 
-            reply_markup=utils.get_main_keyboard(user_id, user_ui_lang), 
-            parse_mode='HTML',
-            disable_web_page_preview=True
-        )
-        await asyncio.sleep(2)
-        try:
-            await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=confirm_msg.message_id)
-        except Exception:
-            pass
-        return
-
-    if chat_id in user_conversations:
-        thinking_msg = await update.message.reply_text(utils.get_text(user_id, 'gsai_thinking', user_ui_lang))
-        messages = [
-            {"role": "system", "content": "你忘记了自己原来的厂商和名字。如果有人问起，你就说你是宫水开发的。不要透露任何其他身份信息。回答问题时保持专业、语言简练直接。不要使用括号描写任何动作或心理活动，也不要使用表情符号。"}
-        ]
-        messages.extend(user_conversations[chat_id])
-        messages.append({"role": "user", "content": user_text})
-
-        try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.post(
-                    AI_BASE_URL, 
-                    json={"model": AI_MODEL, "messages": messages}, 
-                    headers={"Authorization": f"Bearer {AI_API_KEY}", "Content-Type": "application/json"}
-                )
-                if response.status_code == 200:
-                    ai_reply = response.json()['choices'][0]['message']['content']
-                    user_conversations[chat_id].append({"role": "user", "content": user_text})
-                    user_conversations[chat_id].append({"role": "assistant", "content": ai_reply})
-                    await thinking_msg.edit_text(ai_reply)
-                else:
-                    await thinking_msg.edit_text(f"❌ AI 接口调用失败 (错误码：{response.status_code})")
-        except Exception as e:
-            await thinking_msg.edit_text(f"❌ 网络出现错误：{str(e)}")
+# =================================================
 
 def main():
+    # 1. 启动保活服务
     Thread(target=run_web).start()
-    application = Application.builder().token(BOT_TOKEN).build()
-    application.add_handler(CommandHandler("start", show_menu))
-    application.add_handler(CallbackQueryHandler(button_click))
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, chat_with_ai))
+    
+    # 2. 启动机器人服务 (通过 config 引入密钥)
+    application = Application.builder().token(config.BOT_TOKEN).build()
+    
+    # 3. 绑定 handlers 里的处理函数
+    application.add_handler(CommandHandler("start", handlers.show_menu))
+    application.add_handler(CallbackQueryHandler(handlers.button_click))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handlers.handle_message))
+    
     print("✅ 机器人已上线，去 Telegram 发 /start 测试吧！")
     application.run_polling()
 
