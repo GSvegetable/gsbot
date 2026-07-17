@@ -34,10 +34,12 @@ async def show_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode='HTML'
         )
         return
+    # 禁用网页预览，防止名片卡片弹出
     await update.message.reply_text(
         utils.get_text(user_id, 'main_msg', user_ui_lang), 
         reply_markup=utils.get_main_keyboard(user_id, user_ui_lang), 
-        parse_mode='HTML'
+        parse_mode='HTML',
+        disable_web_page_preview=True
     )
 
 async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -62,11 +64,12 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif query.data == 'gsai':
         user_conversations[chat_id] = []
+        # 仅修改文字，去掉了多余的回执话术
         await query.edit_message_text(text=utils.get_text(user_id, 'gsai_welcome', user_ui_lang), reply_markup=None)
-        # 底部的双按钮菜单（退出AI对话、返回主菜单）
+        # 直接弹出底部菜单
         await context.bot.send_message(
             chat_id=chat_id, 
-            text="🟢 进入对话模式", 
+            text="有什么可以帮您", 
             reply_markup=utils.get_chat_reply_keyboard()
         )
 
@@ -108,26 +111,30 @@ async def chat_with_ai(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.message.chat_id
     user_text = update.message.text
 
-    # ===== 新增的精确清理逻辑 =====
-    if user_text == '退出 AI 对话' or user_text == '返回主菜单':
+    # ===== 去除表情，加入 3 秒精准消散逻辑 =====
+    if user_text == '退出 AI 对话':
         if chat_id in user_conversations:
             del user_conversations[chat_id]
         
-        # 1. 发出【消息B】（确认退出气泡）
-        confirm_msg = await update.message.reply_text("✅ 已退出 AI 对话", reply_markup=ReplyKeyboardRemove())
+        # 1. 发送纯文本退出提示
+        confirm_msg = await update.message.reply_text("已退出 AI 对话", reply_markup=ReplyKeyboardRemove())
         
-        # 2. 发出【消息C】（首页卡片）
+        # 2. 发送带有主菜单的新消息，并禁用网页预览
         await update.message.reply_text(
             utils.get_text(user_id, 'main_msg', user_ui_lang), 
             reply_markup=utils.get_main_keyboard(user_id, user_ui_lang), 
-            parse_mode='HTML'
+            parse_mode='HTML',
+            disable_web_page_preview=True
         )
         
-        # 3. 发完消息C后，删掉【消息B】（如果你不让它删，此处注释掉即可）
+        # 3. 等待 3 秒
+        await asyncio.sleep(3)
+        
+        # 4. 删除之前的 "已退出 AI 对话" 消息，触发消散动画
         try:
             await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=confirm_msg.message_id)
         except Exception:
-            pass # 即使删除失败，也不影响使用，只是多留下一个消息
+            pass
         return
 
     if chat_id in user_conversations:
