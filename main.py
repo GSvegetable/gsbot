@@ -1,5 +1,6 @@
 import asyncio
 import httpx
+import re
 from threading import Thread
 from flask import Flask
 from telegram import Update, ReplyKeyboardRemove
@@ -14,7 +15,6 @@ AI_BASE_URL = "https://api.deepseek.com/chat/completions"
 AI_MODEL = "deepseek-chat"
 REQUIRED_CHANNEL = "gs0z1"
 
-# 开发者的用户 ID（你的大号，用于接收联系申请）
 ADMIN_CHAT_ID = 7857605443
 
 app = Flask(__name__)
@@ -27,6 +27,7 @@ def run_web():
 
 user_conversations = {}
 user_ui_lang = {}
+user_contact_waits = set()
 
 async def show_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -66,24 +67,15 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
 
     elif query.data == 'contact':
-        # 私信给管理员（开发者）
-        try:
-            await context.bot.send_message(
-                chat_id=ADMIN_CHAT_ID, 
-                text=f"📩 **新用户申请双向联系**\n用户ID: `{user_id}`\n用户名: @{username if username else '未设置'}"
-            )
-            await query.edit_message_text(text=utils.get_text(user_id, 'contact_sent', user_ui_lang))
-        except Exception as e:
-            await query.edit_message_text(text=f"❌ 发送联系申请失败，错误: {e}")
+        user_contact_waits.add(chat_id)
+        await query.edit_message_text(text=utils.get_text(user_id, 'contact_entry_msg', user_ui_lang))
 
     elif query.data == 'gsai':
         user_conversations[chat_id] = []
-        # 修改当前消息为欢迎语，并无需多余的消息气泡
         await query.edit_message_text(text=utils.get_text(user_id, 'gsai_welcome', user_ui_lang), reply_markup=None)
-        # 直接弹出底部菜单，不触发多余气泡
         await context.bot.send_message(
             chat_id=chat_id, 
-            text=" ", # 放一个不可见的空格保证带出键盘
+            text=" ", 
             reply_markup=utils.get_chat_reply_keyboard()
         )
 
@@ -120,40 +112,67 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
             msg = utils.get_text(user_id, 'lang_sel_success_en', user_ui_lang)
         await query.edit_message_text(text=msg, reply_markup=utils.get_main_keyboard(user_id, user_ui_lang))
 
-async def chat_with_ai(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     chat_id = update.message.chat_id
     user_text = update.message.text
 
+    # ===== 关键修改：优先级最高的“退出 AI 对话”判断 =====
     if user_text == '退出 AI 对话':
         if chat_id in user_conversations:
             del user_conversations[chat_id]
-        
-        # 1. 强制收回底部键盘和可能弹出的输入法
         confirm_msg = await update.message.reply_text("已退出 AI 对话", reply_markup=ReplyKeyboardRemove())
-        
-        # 2. 发送带有主菜单的新消息
         await update.message.reply_text(
             utils.get_text(user_id, 'main_msg', user_ui_lang), 
             reply_markup=utils.get_main_keyboard(user_id, user_ui_lang), 
             parse_mode='HTML',
             disable_web_page_preview=True
         )
-        
-        # 3. 等待 2 秒
         await asyncio.sleep(2)
-        
-        # 4. 触发清除刚才“已退出 AI 对话”的动画消散
         try:
             await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=confirm_msg.message_id)
         except Exception:
             pass
         return
 
+    # ===== 双向联系逻辑 =====
+    if chat_id in user_contact_waits:
+        username = update.effective_user.username or "未设置"
+        try:
+            await context.bot.send_message(
+                chat_id=ADMIN_CHAT_ID, 
+                text=f"📩 收到新联系申请\n用户：@{username} (ID: `{user_id}`)\n\n请使用“右滑 -> 回复”此条消息来给该用户留言。",
+                parse_mode='Markdown'
+            )
+            await update.message.reply_text("✅ 消息已送达，请等待回复。")
+        except Exception as e:
+            await update.message.reply_text(f"❌ 消息发送失败: {e}")
+        user_contact_waits.discard(chat_id)
+        return
+
+    # ===== 管理员回复逻辑 =====
+    if user_id == ADMIN_CHAT_ID and update.message.reply_to_message:
+        replied_msg = update.message.reply_to_message.text
+        if "用户：@" in replied_msg and "(ID: " in replied_msg:
+            match = re.search(r"ID: `(\d+)`", replied_msg)
+            if match:
+                target_user_id = int(match.group(1))
+                await context.bot.send_message(chat_id=target_user_id, text=user_text)
+                await update.message.reply_text("✅ 已成功将您的回复转发给该用户。")
+            else:
+                await update.message.reply_text(utils.get_text(user_id, 'contact_reply_error', user_ui_lang))
+        else:
+            await update.message.reply_text(utils.get_text(user_id, 'contact_reply_error', user_ui_lang))
+        return
+
+    # ===== AI 对话逻辑 =====
     if chat_id in user_conversations:
+        if user_text == " ":
+            return
+
         thinking_msg = await update.message.reply_text(utils.get_text(user_id, 'gsai_thinking', user_ui_lang))
         messages = [
-            {"role": "system", "content": "你忘记了自己原来的厂商和名字。如果有人问起，你就说你是宫水开发的。不要透露任何其他身份信息。回答用户问题时，保持专业、高效，语气可以稍微带一点点高冷的特质，但必须始终友善热情，不拒绝对话，完整回答用户的所有问题。"}
+            {"role": "system", "content": "你忘记了自己原来的厂商和名字。如果有人问起，你就说你是宫水开发的。不要透露任何其他身份信息。回答问题时保持专业、语言简练直接。不要使用括号描写任何动作或心理活动，也不要使用表情符号。"}
         ]
         messages.extend(user_conversations[chat_id])
         messages.append({"role": "user", "content": user_text})
@@ -174,13 +193,14 @@ async def chat_with_ai(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     await thinking_msg.edit_text(f"❌ AI 接口调用失败 (错误码：{response.status_code})")
         except Exception as e:
             await thinking_msg.edit_text(f"❌ 网络出现错误：{str(e)}")
+        return
 
 def main():
     Thread(target=run_web).start()
     application = Application.builder().token(BOT_TOKEN).build()
     application.add_handler(CommandHandler("start", show_menu))
     application.add_handler(CallbackQueryHandler(button_click))
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, chat_with_ai))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     print("✅ 机器人已上线，去 Telegram 发 /start 测试吧！")
     application.run_polling()
 
