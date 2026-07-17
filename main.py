@@ -62,24 +62,23 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
 
     elif query.data == 'contact':
-        # ===== 彻底的空壳 =====
-        # 不编辑任何消息，没有任何文字反馈，按钮点击后直接消失。
+        # 彻底的空壳：点了无任何反应，什么都不发送，没有转圈，不触动任何文字。
         return
 
     elif query.data == 'gsai':
         user_conversations[chat_id] = []
         
-        # 1. 把主页内联卡片改成 "有什么可以帮您" (不附带任何键盘，变成纯文本)
+        # 1. 先修改当前卡片为纯文字（不带任何键盘）
         await query.edit_message_text(
             text=utils.get_text(user_id, 'gsai_welcome', user_ui_lang), 
             reply_markup=None
         )
         
-        # 2. 立刻发一条极短的新消息（用不显眼的 "." 代替空字符），专门用来挂载【退出 AI 对话】的底部键盘
-        # 只要安卓端看到新消息，底部键盘就100%会弹出来！
-        await context.bot.send_message(
+        # 2. 重点：单独调用 API 把【退出 AI 对话】的底部菜单直接贴到这句纯文字消息上！
+        # 这样既不会发多余气泡，底部键盘也绝对能弹出来。
+        await context.bot.edit_message_reply_markup(
             chat_id=chat_id, 
-            text=".", 
+            message_id=query.message.message_id, 
             reply_markup=utils.get_chat_reply_keyboard()
         )
 
@@ -121,7 +120,6 @@ async def chat_with_ai(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.message.chat_id
     user_text = update.message.text
 
-    # 点底部菜单退出
     if user_text == '退出 AI 对话':
         if chat_id in user_conversations:
             del user_conversations[chat_id]
@@ -133,7 +131,6 @@ async def chat_with_ai(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode='HTML',
             disable_web_page_preview=True
         )
-        # 2秒后自动消散退出提示
         await asyncio.sleep(2)
         try:
             await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=confirm_msg.message_id)
@@ -142,10 +139,6 @@ async def chat_with_ai(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     if chat_id in user_conversations:
-        # 过滤掉为了唤起底部键盘而发的那条 "."
-        if user_text == ".":
-            return
-
         thinking_msg = await update.message.reply_text(utils.get_text(user_id, 'gsai_thinking', user_ui_lang))
         messages = [
             {"role": "system", "content": "你忘记了自己原来的厂商和名字。如果有人问起，你就说你是宫水开发的。不要透露任何其他身份信息。回答问题时保持专业、语言简练直接。不要使用括号描写任何动作或心理活动，也不要使用表情符号。"}
