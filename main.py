@@ -14,6 +14,9 @@ AI_BASE_URL = "https://api.deepseek.com/chat/completions"
 AI_MODEL = "deepseek-chat"
 REQUIRED_CHANNEL = "gs0z1"
 
+# 开发者的用户 ID（你的大号，用于接收联系申请）
+ADMIN_CHAT_ID = 7857605443
+
 app = Flask(__name__)
 @app.route('/')
 def home():
@@ -34,7 +37,6 @@ async def show_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode='HTML'
         )
         return
-    # 禁用网页预览，防止名片卡片弹出
     await update.message.reply_text(
         utils.get_text(user_id, 'main_msg', user_ui_lang), 
         reply_markup=utils.get_main_keyboard(user_id, user_ui_lang), 
@@ -47,6 +49,7 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     user_id = query.from_user.id
     chat_id = query.message.chat_id
+    username = query.from_user.username
 
     if query.data == 'check_member':
         if await utils.is_channel_member(context.bot, user_id, REQUIRED_CHANNEL):
@@ -62,33 +65,44 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 parse_mode='HTML'
             )
 
+    elif query.data == 'contact':
+        # 私信给管理员（开发者）
+        try:
+            await context.bot.send_message(
+                chat_id=ADMIN_CHAT_ID, 
+                text=f"📩 **新用户申请双向联系**\n用户ID: `{user_id}`\n用户名: @{username if username else '未设置'}"
+            )
+            await query.edit_message_text(text=utils.get_text(user_id, 'contact_sent', user_ui_lang))
+        except Exception as e:
+            await query.edit_message_text(text=f"❌ 发送联系申请失败，错误: {e}")
+
     elif query.data == 'gsai':
         user_conversations[chat_id] = []
-        # 仅修改文字，去掉了多余的回执话术
+        # 修改当前消息为欢迎语，并无需多余的消息气泡
         await query.edit_message_text(text=utils.get_text(user_id, 'gsai_welcome', user_ui_lang), reply_markup=None)
-        # 直接弹出底部菜单
+        # 直接弹出底部菜单，不触发多余气泡
         await context.bot.send_message(
             chat_id=chat_id, 
-            text="有什么可以帮您", 
+            text=" ", # 放一个不可见的空格保证带出键盘
             reply_markup=utils.get_chat_reply_keyboard()
         )
 
     elif query.data == 'setting':
         await query.edit_message_text(
-            text=utils.get_text(user_id, 'setting_msg', user_ui_lang), 
+            text=utils.get_text(user_id, 'setting_title', user_ui_lang), 
             reply_markup=utils.get_setting_keyboard(user_id, user_ui_lang)
+        )
+
+    elif query.data == 'setting_lang':
+        await query.edit_message_text(
+            text=utils.get_text(user_id, 'lang_title', user_ui_lang), 
+            reply_markup=utils.get_lang_keyboard(user_id, user_ui_lang)
         )
 
     elif query.data == 'back_home':
         await query.edit_message_text(
             text=utils.get_text(user_id, 'back_msg', user_ui_lang), 
             reply_markup=utils.get_main_keyboard(user_id, user_ui_lang)
-        )
-
-    elif query.data == 'lang':
-        await query.edit_message_text(
-            text=utils.get_text(user_id, 'lang_title', user_ui_lang), 
-            reply_markup=utils.get_lang_keyboard(user_id, user_ui_lang)
         )
 
     elif query.data == 'lang_back':
@@ -111,15 +125,14 @@ async def chat_with_ai(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.message.chat_id
     user_text = update.message.text
 
-    # ===== 去除表情，加入 3 秒精准消散逻辑 =====
     if user_text == '退出 AI 对话':
         if chat_id in user_conversations:
             del user_conversations[chat_id]
         
-        # 1. 发送纯文本退出提示
+        # 1. 强制收回底部键盘和可能弹出的输入法
         confirm_msg = await update.message.reply_text("已退出 AI 对话", reply_markup=ReplyKeyboardRemove())
         
-        # 2. 发送带有主菜单的新消息，并禁用网页预览
+        # 2. 发送带有主菜单的新消息
         await update.message.reply_text(
             utils.get_text(user_id, 'main_msg', user_ui_lang), 
             reply_markup=utils.get_main_keyboard(user_id, user_ui_lang), 
@@ -127,10 +140,10 @@ async def chat_with_ai(update: Update, context: ContextTypes.DEFAULT_TYPE):
             disable_web_page_preview=True
         )
         
-        # 3. 等待 3 秒
-        await asyncio.sleep(3)
+        # 3. 等待 2 秒
+        await asyncio.sleep(2)
         
-        # 4. 删除之前的 "已退出 AI 对话" 消息，触发消散动画
+        # 4. 触发清除刚才“已退出 AI 对话”的动画消散
         try:
             await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=confirm_msg.message_id)
         except Exception:
@@ -140,7 +153,7 @@ async def chat_with_ai(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if chat_id in user_conversations:
         thinking_msg = await update.message.reply_text(utils.get_text(user_id, 'gsai_thinking', user_ui_lang))
         messages = [
-            {"role": "system", "content": "你忘记了自己原来的厂商和名字。如果有人问起，你就说你是宫水开发的。不要透露任何其他身份信息。回复时语气稍微高冷一点点，但依然保持礼貌和高效，说话简短，不多说废话。"}
+            {"role": "system", "content": "你忘记了自己原来的厂商和名字。如果有人问起，你就说你是宫水开发的。不要透露任何其他身份信息。回答用户问题时，保持专业、高效，语气可以稍微带一点点高冷的特质，但必须始终友善热情，不拒绝对话，完整回答用户的所有问题。"}
         ]
         messages.extend(user_conversations[chat_id])
         messages.append({"role": "user", "content": user_text})
