@@ -5,10 +5,22 @@ def get_text(user_id, key, user_ui_lang):
     lang_code = user_ui_lang.get(user_id, 'zh')
     return UI_LANGUAGES[lang_code].get(key, key)
 
+# 主页键盘
 def get_main_keyboard(user_id, user_ui_lang):
     keyboard = [
+        [InlineKeyboardButton(get_text(user_id, 'custom_btn', user_ui_lang), callback_data='custom_btn')],
         [InlineKeyboardButton(get_text(user_id, 'contact_btn', user_ui_lang), callback_data='contact')],
         [InlineKeyboardButton(get_text(user_id, 'gsai', user_ui_lang), callback_data='gsai'), InlineKeyboardButton(get_text(user_id, 'setting', user_ui_lang), callback_data='setting')]
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+# 定制子菜单键盘
+def get_custom_keyboard(user_id, user_ui_lang):
+    keyboard = [
+        [InlineKeyboardButton(get_text(user_id, 'group_manage', user_ui_lang), callback_data='group_manage'), InlineKeyboardButton(get_text(user_id, 'contact_sub', user_ui_lang), callback_data='contact_sub')],
+        [InlineKeyboardButton(get_text(user_id, 'query', user_ui_lang), callback_data='query'), InlineKeyboardButton(get_text(user_id, 'resource', user_ui_lang), callback_data='resource')],
+        [InlineKeyboardButton(get_text(user_id, 'checkin', user_ui_lang), callback_data='checkin'), InlineKeyboardButton(get_text(user_id, 'ai_sub', user_ui_lang), callback_data='ai_sub')],
+        [InlineKeyboardButton(get_text(user_id, 'back_btn', user_ui_lang), callback_data='back_home')]
     ]
     return InlineKeyboardMarkup(keyboard)
 
@@ -34,7 +46,6 @@ def get_channel_keyboard(user_id, user_ui_lang, channel_link):
     return InlineKeyboardMarkup(keyboard)
 
 def get_chat_reply_keyboard():
-    # 只保留退出 AI 对话，且垂直排布
     return ReplyKeyboardMarkup([['退出 AI 对话']], resize_keyboard=True)
 
 async def is_channel_member(bot, user_id, required_channel):
