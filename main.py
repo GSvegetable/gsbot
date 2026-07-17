@@ -61,17 +61,29 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 parse_mode='HTML'
             )
 
-    elif query.data == 'contact':
-        # 彻底静默：点下去没有任何反馈
-        return
+    # === 点击“免费定制机器人” ===
+    elif query.data == 'custom_btn':
+        await query.edit_message_text(
+            text=utils.get_text(user_id, 'custom_title', user_ui_lang), 
+            reply_markup=utils.get_custom_keyboard(user_id, user_ui_lang)
+        )
+
+    # === 点击“返回主菜单” ===
+    elif query.data == 'back_home':
+        await query.edit_message_text(
+            text=utils.get_text(user_id, 'main_msg', user_ui_lang), 
+            reply_markup=utils.get_main_keyboard(user_id, user_ui_lang), 
+            parse_mode='HTML'
+        )
+
+    # === 完全静默按钮（只有转圈消失，毫无反应） ===
+    elif query.data in ['contact', 'group_manage', 'contact_sub', 'query', 'resource', 'checkin', 'ai_sub']:
+        # 已经执行了 await query.answer()，所以不会卡死，但没有实际内容和变化
+        pass
 
     elif query.data == 'gsai':
         user_conversations[chat_id] = []
-        
-        # ★★★ 终极方案：先删掉旧卡片，再单独发一条带底部键盘的新消息 ★★★
-        await query.message.delete()
-        await context.bot.send_message(
-            chat_id=chat_id,
+        await query.edit_message_text(
             text=utils.get_text(user_id, 'gsai_welcome', user_ui_lang),
             reply_markup=utils.get_chat_reply_keyboard()
         )
@@ -86,12 +98,6 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(
             text=utils.get_text(user_id, 'lang_title', user_ui_lang), 
             reply_markup=utils.get_lang_keyboard(user_id, user_ui_lang)
-        )
-
-    elif query.data == 'back_home':
-        await query.edit_message_text(
-            text=utils.get_text(user_id, 'back_msg', user_ui_lang), 
-            reply_markup=utils.get_main_keyboard(user_id, user_ui_lang)
         )
 
     elif query.data == 'lang_back':
@@ -117,7 +123,6 @@ async def chat_with_ai(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if user_text == '退出 AI 对话':
         if chat_id in user_conversations:
             del user_conversations[chat_id]
-        
         confirm_msg = await update.message.reply_text("已退出 AI 对话", reply_markup=ReplyKeyboardRemove())
         await update.message.reply_text(
             utils.get_text(user_id, 'main_msg', user_ui_lang), 
