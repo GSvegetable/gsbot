@@ -49,10 +49,12 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if query.data == 'check_member':
         if await utils.is_channel_member(context.bot, user_id, REQUIRED_CHANNEL):
+            # ====== 修复点 1：新用户检测成功回主页，禁用名片预览 ======
             await query.edit_message_text(
                 utils.get_text(user_id, 'main_msg', user_ui_lang), 
                 reply_markup=utils.get_main_keyboard(user_id, user_ui_lang), 
-                parse_mode='HTML'
+                parse_mode='HTML',
+                disable_web_page_preview=True
             )
         else:
             await query.edit_message_text(
@@ -61,24 +63,22 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 parse_mode='HTML'
             )
 
-    # === 点击“免费定制机器人” ===
     elif query.data == 'custom_btn':
         await query.edit_message_text(
             text=utils.get_text(user_id, 'custom_title', user_ui_lang), 
             reply_markup=utils.get_custom_keyboard(user_id, user_ui_lang)
         )
 
-    # === 点击“返回主菜单” ===
     elif query.data == 'back_home':
+        # ====== 修复点 2：从定制菜单返回主菜单，禁用名片预览 ======
         await query.edit_message_text(
             text=utils.get_text(user_id, 'main_msg', user_ui_lang), 
             reply_markup=utils.get_main_keyboard(user_id, user_ui_lang), 
-            parse_mode='HTML'
+            parse_mode='HTML',
+            disable_web_page_preview=True
         )
 
-    # === 完全静默按钮（只有转圈消失，毫无反应） ===
     elif query.data in ['contact', 'group_manage', 'contact_sub', 'query', 'resource', 'checkin', 'ai_sub']:
-        # 已经执行了 await query.answer()，所以不会卡死，但没有实际内容和变化
         pass
 
     elif query.data == 'gsai':
@@ -124,6 +124,7 @@ async def chat_with_ai(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if chat_id in user_conversations:
             del user_conversations[chat_id]
         confirm_msg = await update.message.reply_text("已退出 AI 对话", reply_markup=ReplyKeyboardRemove())
+        # ====== 修复点 3：从 AI 退出回主菜单，禁用名片预览 ======
         await update.message.reply_text(
             utils.get_text(user_id, 'main_msg', user_ui_lang), 
             reply_markup=utils.get_main_keyboard(user_id, user_ui_lang), 
