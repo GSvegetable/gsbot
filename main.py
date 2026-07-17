@@ -62,14 +62,16 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
 
     elif query.data == 'contact':
-        # 彻底的静默空壳：点下去连按钮都不会转圈，什么都不发，什么都不改。
+        # 彻底静默：点下去没有任何反馈
         return
 
     elif query.data == 'gsai':
         user_conversations[chat_id] = []
-        # ★★★ 终极修复：单次混合操作，既改文字，又直接挂载底部键盘 ★★★
-        # 绝不拆分成两步，完美绕开安卓端的渲染丢失 BUG！
-        await query.edit_message_text(
+        
+        # ★★★ 终极方案：先删掉旧卡片，再单独发一条带底部键盘的新消息 ★★★
+        await query.message.delete()
+        await context.bot.send_message(
+            chat_id=chat_id,
             text=utils.get_text(user_id, 'gsai_welcome', user_ui_lang),
             reply_markup=utils.get_chat_reply_keyboard()
         )
