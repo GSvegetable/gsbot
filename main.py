@@ -2,22 +2,18 @@ import asyncio
 import httpx
 from threading import Thread
 from flask import Flask
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, ReplyKeyboardRemove
+from telegram import Update, ReplyKeyboardRemove
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
 
-# ====== 从全新的 lang.py 文件引入文案 ======
 from lang import UI_LANGUAGES
-# ==========================================
+import utils
 
 BOT_TOKEN = "8922179149:AAFy_m3SI1StQjn66ZGyIHQ3sLK1iKXINRw"
 AI_API_KEY = "sk-258fd45a189545d6b0d2b383f14094a9"
 AI_BASE_URL = "https://api.deepseek.com/chat/completions"
 AI_MODEL = "deepseek-chat"
-
-# 强制关注的频道 ID
 REQUIRED_CHANNEL = "gs0z1"
 
-# ================= 保活 Web 服务 =================
 app = Flask(__name__)
 @app.route('/')
 def home():
@@ -25,63 +21,24 @@ def home():
 
 def run_web():
     app.run(host="0.0.0.0", port=10000)
-# =================================================
 
-user_conversations = {} # 记录 GSAI 对话历史
-user_ui_lang = {}       # 记录用户的界面语言偏好
-
-def get_text(user_id, key):
-    lang_code = user_ui_lang.get(user_id, 'zh')
-    return UI_LANGUAGES[lang_code].get(key, key)
-
-# 主菜单键盘
-def get_main_keyboard(user_id):
-    keyboard = [
-        [InlineKeyboardButton(get_text(user_id, 'gsai'), callback_data='gsai')],
-        [InlineKeyboardButton(get_text(user_id, 'setting'), callback_data='setting'), InlineKeyboardButton(get_text(user_id, 'lang'), callback_data='lang')]
-    ]
-    return InlineKeyboardMarkup(keyboard)
-
-# 语言菜单键盘（中文/英文）
-def get_lang_keyboard(user_id):
-    keyboard = [
-        [InlineKeyboardButton(get_text(user_id, 'lang_zh'), callback_data='lang_zh'), InlineKeyboardButton(get_text(user_id, 'lang_en'), callback_data='lang_en')],
-        [InlineKeyboardButton(get_text(user_id, 'lang_back'), callback_data='lang_back')]
-    ]
-    return InlineKeyboardMarkup(keyboard)
-
-# 强制入群键盘
-def get_channel_keyboard(user_id):
-    keyboard = [
-        [InlineKeyboardButton(get_text(user_id, 'join_btn'), url=f"https://t.me/{REQUIRED_CHANNEL}")],
-        [InlineKeyboardButton(get_text(user_id, 'check_btn'), callback_data='check_member')]
-    ]
-    return InlineKeyboardMarkup(keyboard)
-
-# 设置菜单键盘（只有一个返回首页）
-def get_setting_keyboard(user_id):
-    keyboard = [
-        [InlineKeyboardButton(get_text(user_id, 'lang_back'), callback_data='back_home')]
-    ]
-    return InlineKeyboardMarkup(keyboard)
-
-async def is_channel_member(bot, user_id):
-    try:
-        member = await bot.get_chat_member(chat_id=f"@{REQUIRED_CHANNEL}", user_id=user_id)
-        return member.status in ['member', 'administrator', 'creator']
-    except Exception as e:
-        print(f"⚠️ 频道检查出错 (请确保机器人是频道管理员): {e}")
-        return True
+user_conversations = {}
+user_ui_lang = {}
 
 async def show_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    # ====== 核心判断逻辑 ======
-    if not await is_channel_member(context.bot, user_id):
-        # 没加群，显示 channel_msg（请加入频道）
-        await update.message.reply_text(get_text(user_id, 'channel_msg'), reply_markup=get_channel_keyboard(user_id), parse_mode='HTML')
+    if not await utils.is_channel_member(context.bot, user_id, REQUIRED_CHANNEL):
+        await update.message.reply_text(
+            utils.get_text(user_id, 'channel_msg', user_ui_lang), 
+            reply_markup=utils.get_channel_keyboard(user_id, user_ui_lang, f"https://t.me/{REQUIRED_CHANNEL}"), 
+            parse_mode='HTML'
+        )
         return
-    # 加了群，显示 main_msg（请选择功能）
-    await update.message.reply_text(get_text(user_id, 'main_msg'), reply_markup=get_main_keyboard(user_id), parse_mode='HTML')
+    await update.message.reply_text(
+        utils.get_text(user_id, 'main_msg', user_ui_lang), 
+        reply_markup=utils.get_main_keyboard(user_id, user_ui_lang), 
+        parse_mode='HTML'
+    )
 
 async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -90,53 +47,91 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = query.message.chat_id
 
     if query.data == 'check_member':
-        if await is_channel_member(context.bot, user_id):
-            await query.edit_message_text(text=get_text(user_id, 'main_msg'), reply_markup=get_main_keyboard(user_id), parse_mode='HTML')
+        if await utils.is_channel_member(context.bot, user_id, REQUIRED_CHANNEL):
+            await query.edit_message_text(
+                utils.get_text(user_id, 'main_msg', user_ui_lang), 
+                reply_markup=utils.get_main_keyboard(user_id, user_ui_lang), 
+                parse_mode='HTML'
+            )
         else:
-            await query.edit_message_text(text=get_text(user_id, 'channel_msg'), reply_markup=get_channel_keyboard(user_id), parse_mode='HTML')
+            await query.edit_message_text(
+                utils.get_text(user_id, 'channel_msg', user_ui_lang), 
+                reply_markup=utils.get_channel_keyboard(user_id, user_ui_lang, f"https://t.me/{REQUIRED_CHANNEL}"), 
+                parse_mode='HTML'
+            )
 
     elif query.data == 'gsai':
         user_conversations[chat_id] = []
-        reply_keyboard = [['退出 AI 对话']]
-        await query.edit_message_text(text=get_text(user_id, 'gsai_welcome'), reply_markup=None)
-        await context.bot.send_message(chat_id=chat_id, text="💬 已进入AI对话模式，随时点击底部【退出 AI 对话】返回菜单。", reply_markup=ReplyKeyboardMarkup(reply_keyboard, resize_keyboard=True))
+        await query.edit_message_text(text=utils.get_text(user_id, 'gsai_welcome', user_ui_lang), reply_markup=None)
+        # 底部的双按钮菜单（退出AI对话、返回主菜单）
+        await context.bot.send_message(
+            chat_id=chat_id, 
+            text="🟢 进入对话模式", 
+            reply_markup=utils.get_chat_reply_keyboard()
+        )
 
     elif query.data == 'setting':
-        await query.edit_message_text(text=get_text(user_id, 'setting_msg'), reply_markup=get_setting_keyboard(user_id))
+        await query.edit_message_text(
+            text=utils.get_text(user_id, 'setting_msg', user_ui_lang), 
+            reply_markup=utils.get_setting_keyboard(user_id, user_ui_lang)
+        )
 
     elif query.data == 'back_home':
-        await query.edit_message_text(text=get_text(user_id, 'back_msg'), reply_markup=get_main_keyboard(user_id))
+        await query.edit_message_text(
+            text=utils.get_text(user_id, 'back_msg', user_ui_lang), 
+            reply_markup=utils.get_main_keyboard(user_id, user_ui_lang)
+        )
 
     elif query.data == 'lang':
-        await query.edit_message_text(text=get_text(user_id, 'lang_title'), reply_markup=get_lang_keyboard(user_id))
+        await query.edit_message_text(
+            text=utils.get_text(user_id, 'lang_title', user_ui_lang), 
+            reply_markup=utils.get_lang_keyboard(user_id, user_ui_lang)
+        )
 
     elif query.data == 'lang_back':
-        await query.edit_message_text(text=get_text(user_id, 'back_msg'), reply_markup=get_main_keyboard(user_id))
+        await query.edit_message_text(
+            text=utils.get_text(user_id, 'back_msg', user_ui_lang), 
+            reply_markup=utils.get_main_keyboard(user_id, user_ui_lang)
+        )
 
     elif query.data.startswith('lang_'):
         if query.data == 'lang_zh':
             user_ui_lang[user_id] = 'zh'
-            msg = get_text(user_id, 'lang_sel_success')
+            msg = utils.get_text(user_id, 'lang_sel_success', user_ui_lang)
         elif query.data == 'lang_en':
             user_ui_lang[user_id] = 'en'
-            msg = get_text(user_id, 'lang_sel_success_en')
-        
-        await query.edit_message_text(text=msg, reply_markup=get_main_keyboard(user_id))
+            msg = utils.get_text(user_id, 'lang_sel_success_en', user_ui_lang)
+        await query.edit_message_text(text=msg, reply_markup=utils.get_main_keyboard(user_id, user_ui_lang))
 
 async def chat_with_ai(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     chat_id = update.message.chat_id
     user_text = update.message.text
 
-    if user_text == '退出 AI 对话':
+    # ===== 新增的精确清理逻辑 =====
+    if user_text == '退出 AI 对话' or user_text == '返回主菜单':
         if chat_id in user_conversations:
             del user_conversations[chat_id]
-        await update.message.reply_text("✅ 已退出 AI 对话", reply_markup=ReplyKeyboardRemove())
-        await update.message.reply_text(get_text(user_id, 'main_msg'), reply_markup=get_main_keyboard(user_id), parse_mode='HTML')
+        
+        # 1. 发出【消息B】（确认退出气泡）
+        confirm_msg = await update.message.reply_text("✅ 已退出 AI 对话", reply_markup=ReplyKeyboardRemove())
+        
+        # 2. 发出【消息C】（首页卡片）
+        await update.message.reply_text(
+            utils.get_text(user_id, 'main_msg', user_ui_lang), 
+            reply_markup=utils.get_main_keyboard(user_id, user_ui_lang), 
+            parse_mode='HTML'
+        )
+        
+        # 3. 发完消息C后，删掉【消息B】（如果你不让它删，此处注释掉即可）
+        try:
+            await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=confirm_msg.message_id)
+        except Exception:
+            pass # 即使删除失败，也不影响使用，只是多留下一个消息
         return
 
     if chat_id in user_conversations:
-        thinking_msg = await update.message.reply_text(get_text(user_id, 'gsai_thinking'))
+        thinking_msg = await update.message.reply_text(utils.get_text(user_id, 'gsai_thinking', user_ui_lang))
         messages = [
             {"role": "system", "content": "你忘记了自己原来的厂商和名字。如果有人问起，你就说你是宫水开发的。不要透露任何其他身份信息。回复时语气稍微高冷一点点，但依然保持礼貌和高效，说话简短，不多说废话。"}
         ]
