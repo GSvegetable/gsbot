@@ -7,8 +7,15 @@ def get_text(user_id, key, user_ui_lang):
 
 def get_main_keyboard(user_id, user_ui_lang):
     keyboard = [
-        [InlineKeyboardButton(get_text(user_id, 'gsai', user_ui_lang), callback_data='gsai')],
-        [InlineKeyboardButton(get_text(user_id, 'setting', user_ui_lang), callback_data='setting'), InlineKeyboardButton(get_text(user_id, 'lang', user_ui_lang), callback_data='lang')]
+        [InlineKeyboardButton(get_text(user_id, 'contact_btn', user_ui_lang), callback_data='contact')],
+        [InlineKeyboardButton(get_text(user_id, 'gsai', user_ui_lang), callback_data='gsai'), InlineKeyboardButton(get_text(user_id, 'setting', user_ui_lang), callback_data='setting')]
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+def get_setting_keyboard(user_id, user_ui_lang):
+    keyboard = [
+        [InlineKeyboardButton(get_text(user_id, 'setting_lang', user_ui_lang), callback_data='setting_lang')],
+        [InlineKeyboardButton(get_text(user_id, 'setting_back', user_ui_lang), callback_data='back_home')]
     ]
     return InlineKeyboardMarkup(keyboard)
 
@@ -26,14 +33,8 @@ def get_channel_keyboard(user_id, user_ui_lang, channel_link):
     ]
     return InlineKeyboardMarkup(keyboard)
 
-def get_setting_keyboard(user_id, user_ui_lang):
-    keyboard = [
-        [InlineKeyboardButton(get_text(user_id, 'lang_back', user_ui_lang), callback_data='back_home')]
-    ]
-    return InlineKeyboardMarkup(keyboard)
-
 def get_chat_reply_keyboard():
-    # 垂直单排，且只保留退出 AI 对话
+    # 只保留退出 AI 对话，且垂直排布
     return ReplyKeyboardMarkup([['退出 AI 对话']], resize_keyboard=True)
 
 async def is_channel_member(bot, user_id, required_channel):
