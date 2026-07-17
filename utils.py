@@ -33,8 +33,8 @@ def get_setting_keyboard(user_id, user_ui_lang):
     return InlineKeyboardMarkup(keyboard)
 
 def get_chat_reply_keyboard():
-    # AI对话底部的两个按钮
-    return ReplyKeyboardMarkup([['退出 AI 对话', '返回主菜单']], resize_keyboard=True)
+    # 垂直单排，且只保留退出 AI 对话
+    return ReplyKeyboardMarkup([['退出 AI 对话']], resize_keyboard=True)
 
 async def is_channel_member(bot, user_id, required_channel):
     try:
