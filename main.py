@@ -62,23 +62,15 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
 
     elif query.data == 'contact':
-        # 彻底的空壳：点了无任何反应，什么都不发送，没有转圈，不触动任何文字。
+        # 彻底的静默空壳：点下去连按钮都不会转圈，什么都不发，什么都不改。
         return
 
     elif query.data == 'gsai':
         user_conversations[chat_id] = []
-        
-        # 1. 先修改当前卡片为纯文字（不带任何键盘）
+        # ★★★ 终极修复：单次混合操作，既改文字，又直接挂载底部键盘 ★★★
+        # 绝不拆分成两步，完美绕开安卓端的渲染丢失 BUG！
         await query.edit_message_text(
-            text=utils.get_text(user_id, 'gsai_welcome', user_ui_lang), 
-            reply_markup=None
-        )
-        
-        # 2. 重点：单独调用 API 把【退出 AI 对话】的底部菜单直接贴到这句纯文字消息上！
-        # 这样既不会发多余气泡，底部键盘也绝对能弹出来。
-        await context.bot.edit_message_reply_markup(
-            chat_id=chat_id, 
-            message_id=query.message.message_id, 
+            text=utils.get_text(user_id, 'gsai_welcome', user_ui_lang),
             reply_markup=utils.get_chat_reply_keyboard()
         )
 
