@@ -3,8 +3,8 @@ UI_LANGUAGES = {
         'main_msg': "机器人由<a href=\"https://t.me/gsyxyc\">宫水</a>打造\n\n-内置AI大模型\n-多语言切换\n-深度融合<a href=\"https://t.me/gs0z1\">宫水大世界</a>频道\n\n请选择功能：", 
         'channel_msg': "请先加入频道体验完整功能", 
         'robot_dev': "机器人开发", 
-        'contact_btn': "双向",               # 改成了双向
-        'gsai': "交互",                      # 改成了交互
+        'contact_btn': "双向", 
+        'gsai': "AI",                         # 从“交互”改成了 AI
         'setting': "设置",
         'setting_title': "设置中心：", 
         'setting_lang': "更改语言", 
@@ -13,7 +13,7 @@ UI_LANGUAGES = {
         'lang_zh': "中文", 
         'lang_en': "English", 
         'lang_back': "⬅️ 返回",
-        'back_msg': "返回主菜单",            # 去掉冒号，纯净按钮文字
+        'back_msg': "返回主菜单",
         'gsai_welcome': "有什么可以帮您", 
         'gsai_thinking': "🧠 正在思考...",
         'lang_sel_success': "✅ 已切换为中文界面", 
@@ -24,18 +24,18 @@ UI_LANGUAGES = {
         'dev_title': "机器人开发：",
         'dev_types': "类型", 
         'dev_captcha': "人机验证", 
-        'back_dev_menu': "返回上一级",       # 返回上一级按钮文字
+        'back_dev_menu': "返回上一级",
         'captcha_title': "人机验证：",
         'captcha_math': "数学题验证",
-        'correct_msg': "答对了",             # 保持正确
-        'incorrect_msg': "答错了"            # 答案的答
+        'correct_msg': "答对了",
+        'incorrect_msg': "答错了"
     },
     'en': {
         'main_msg': "Bot built by <a href=\"https://t.me/gsyxyc\">Gongshui</a>\n\n-Built-in AI Large Model\n-Multi-language switching\n-Deep integration with <a href=\"https://t.me/gs0z1\">Gongshui World</a> channel\n\nPlease choose a function:", 
         'channel_msg': "Please join the channel to experience the full features", 
         'robot_dev': "Bot Dev", 
         'contact_btn': "Contact", 
-        'gsai': "AI Chat", 
+        'gsai': "AI",                         # 英文版也统一改成 AI
         'setting': "Settings",
         'setting_title': "Settings Center:", 
         'setting_lang': "Change Language", 
