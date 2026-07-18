@@ -32,8 +32,7 @@ def get_type_keyboard(user_id, user_ui_lang):
     keyboard = []
     for i in range(0, len(funcs), 2):
         row = [InlineKeyboardButton(funcs[i][0], callback_data=funcs[i][1])]
-        if i + 1 < len(funcs): 
-            row.append(InlineKeyboardButton(funcs[i+1][0], callback_data=funcs[i+1][1]))
+        if i + 1 < len(funcs): row.append(InlineKeyboardButton(funcs[i+1][0], callback_data=funcs[i+1][1]))
         keyboard.append(row)
     return InlineKeyboardMarkup(keyboard)
 
@@ -42,34 +41,28 @@ def get_captcha_keyboard(user_id, user_ui_lang):
     return InlineKeyboardMarkup(keyboard)
 
 def get_channel_keyboard(user_id, user_ui_lang, channel_link):
-    keyboard = [
-        [InlineKeyboardButton(get_text(user_id, 'join_btn', user_ui_lang), url=channel_link)],
-        [InlineKeyboardButton(get_text(user_id, 'check_btn', user_ui_lang), callback_data='check_member')]
-    ]
+    keyboard = [[InlineKeyboardButton(get_text(user_id, 'join_btn', user_ui_lang), url=channel_link)], [InlineKeyboardButton(get_text(user_id, 'check_btn', user_ui_lang), callback_data='check_member')]]
     return InlineKeyboardMarkup(keyboard)
 
 def get_lang_keyboard(user_id, user_ui_lang):
-    keyboard = [
-        [InlineKeyboardButton(get_text(user_id, 'lang_zh', user_ui_lang), callback_data='lang_zh'), InlineKeyboardButton(get_text(user_id, 'lang_en', user_ui_lang), callback_data='lang_en')],
-        [InlineKeyboardButton(get_text(user_id, 'lang_back', user_ui_lang), callback_data='lang_back')]
-    ]
+    keyboard = [[InlineKeyboardButton(get_text(user_id, 'lang_zh', user_ui_lang), callback_data='lang_zh'), InlineKeyboardButton(get_text(user_id, 'lang_en', user_ui_lang), callback_data='lang_en')], [InlineKeyboardButton(get_text(user_id, 'lang_back', user_ui_lang), callback_data='lang_back')]]
     return InlineKeyboardMarkup(keyboard)
 
-# 根据当前菜单状态，动态返回不同的底部键盘
+# 底部键盘回复区域（强制【每个按钮独占一排】）
 def get_bottom_keyboard(state, user_id, user_ui_lang):
     lang_home = get_text(user_id, 'back_msg', user_ui_lang)
     lang_back = get_text(user_id, 'back_dev_menu', user_ui_lang)
     lang_exit_ai = get_text(user_id, 'exit_ai', user_ui_lang)
     lang_retry_math = get_text(user_id, 'retry_math', user_ui_lang)
     
+    # 每一行一个 list，严格保证全竖排
     if state == 'home' or state == 'level2':
         return ReplyKeyboardMarkup([[lang_home]], resize_keyboard=True, one_time_keyboard=False)
     elif state == 'level3':
-        return ReplyKeyboardMarkup([[lang_home, lang_back]], resize_keyboard=True, one_time_keyboard=False)
+        return ReplyKeyboardMarkup([[lang_home], [lang_back]], resize_keyboard=True, one_time_keyboard=False)
     elif state == 'ai':
-        return ReplyKeyboardMarkup([[lang_home, lang_exit_ai]], resize_keyboard=True, one_time_keyboard=False)
+        return ReplyKeyboardMarkup([[lang_home], [lang_exit_ai]], resize_keyboard=True, one_time_keyboard=False)
     elif state == 'math':
-        # 三个按钮各占一排
         return ReplyKeyboardMarkup([[lang_home], [lang_back], [lang_retry_math]], resize_keyboard=True, one_time_keyboard=False)
     return ReplyKeyboardMarkup([[lang_home]], resize_keyboard=True)
 
