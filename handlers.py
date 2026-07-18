@@ -8,11 +8,22 @@ from config import REQUIRED_CHANNEL, ADMIN_CHAT_ID, AI_API_KEY, AI_BASE_URL, AI_
 from lang import UI_LANGUAGES
 import utils
 
-# ===== 核心状态变量 =====
 user_conversations = {}
 user_ui_lang = {}
 user_math_state = {}
-user_nav_state = {}  # 记录用户当前的菜单层级状态
+user_nav_state = {}
+
+# ===== 核心黑科技：底部键盘的“幽灵更新”函数 =====
+async def update_bottom_keyboard(context, chat_id, state, user_id):
+    kb = utils.get_bottom_keyboard(state, user_id, user_ui_lang)
+    # 发送一个空文本（零宽空格）挂载键盘，瞬间消除
+    dummy_msg = await context.bot.send_message(chat_id=chat_id, text="\u200B", reply_markup=kb)
+    await asyncio.sleep(0.2) 
+    try:
+        # 0.2秒后直接删除这条空消息，用户肉眼看不到
+        await context.bot.delete_message(chat_id=chat_id, message_id=dummy_msg.message_id)
+    except Exception:
+        pass
 
 async def show_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -27,17 +38,15 @@ async def show_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
         
     user_nav_state[chat_id] = 'home'
+    # 只有一条实质性消息：带有内联菜单的主页卡片
     await update.message.reply_text(
         utils.get_text(user_id, 'main_msg', user_ui_lang), 
         reply_markup=utils.get_main_keyboard(user_id, user_ui_lang), 
         parse_mode='HTML',
         disable_web_page_preview=True
     )
-    # 直接在有意义的消息上挂载底部键盘，去除白框双消息
-    await update.message.reply_text(
-        utils.get_text(user_id, 'back_msg', user_ui_lang),
-        reply_markup=utils.get_bottom_keyboard('home', user_id, user_ui_lang)
-    )
+    # 用黑科技挂载底部键盘，绝不产生多余气泡
+    await update_bottom_keyboard(context, chat_id, 'home', user_id)
 
 async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -48,20 +57,12 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # ===== 移除密码锁，直接正常跳转 =====
     if query.data == 'custom_btn':
         user_nav_state[chat_id] = 'level2'
-        await query.edit_message_text(
-            text=utils.get_text(user_id, 'dev_title', user_ui_lang), 
-            reply_markup=utils.get_dev_keyboard(user_id, user_ui_lang)
-        )
-        await context.bot.send_message(
-            chat_id=chat_id,
-            text=".", # 这里只是为了改变底层键盘，但是内容是个点，让用户看不见
-            reply_markup=utils.get_bottom_keyboard('level2', user_id, user_ui_lang)
-        )
+        await query.edit_message_text(text=utils.get_text(user_id, 'dev_title', user_ui_lang), reply_markup=utils.get_dev_keyboard(user_id, user_ui_lang))
+        await update_bottom_keyboard(context, chat_id, 'level2', user_id)
         return
     
-    # 其他所有按钮（包括双向、AI、设置，移除密码锁后直接进对应状态）
     if query.data in ['contact', 'gsai', 'setting', 'check_member', 'dev_captcha', 'dev_types', 'back_home']:
-        pass # 继续往下走 switch-case
+        pass
     elif query.data == 'setting_lang':
         await query.edit_message_text(text=utils.get_text(user_id, 'lang_title', user_ui_lang), reply_markup=utils.get_lang_keyboard(user_id, user_ui_lang))
         return
@@ -77,31 +78,31 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    # 主要功能跳转逻辑（去掉了白框的空消息，改为主消息带键盘）
     if query.data == 'contact':
         await query.edit_message_text(text="双向联系功能开发中...")
     elif query.data == 'gsai':
         user_nav_state[chat_id] = 'ai'
         user_conversations[chat_id] = []
         await query.edit_message_text(text=utils.get_text(user_id, 'gsai_welcome', user_ui_lang))
-        await context.bot.send_message(chat_id=chat_id, text=".", reply_markup=utils.get_bottom_keyboard('ai', user_id, user_ui_lang))
+        await update_bottom_keyboard(context, chat_id, 'ai', user_id)
     elif query.data == 'setting':
         user_nav_state[chat_id] = 'level2'
         await query.edit_message_text(text=utils.get_text(user_id, 'setting_title', user_ui_lang), reply_markup=utils.get_setting_keyboard(user_id, user_ui_lang))
-        await context.bot.send_message(chat_id=chat_id, text=".", reply_markup=utils.get_bottom_keyboard('level2', user_id, user_ui_lang))
+        await update_bottom_keyboard(context, chat_id, 'level2', user_id)
     elif query.data == 'check_member':
         if await utils.is_channel_member(context.bot, user_id, REQUIRED_CHANNEL):
             await query.edit_message_text(utils.get_text(user_id, 'main_msg', user_ui_lang), reply_markup=utils.get_main_keyboard(user_id, user_ui_lang), parse_mode='HTML', disable_web_page_preview=True)
+            await update_bottom_keyboard(context, chat_id, 'home', user_id)
         else:
             await query.edit_message_text(utils.get_text(user_id, 'channel_msg', user_ui_lang), reply_markup=utils.get_channel_keyboard(user_id, user_ui_lang, f"https://t.me/{REQUIRED_CHANNEL}"), parse_mode='HTML')
     elif query.data == 'dev_captcha':
         user_nav_state[chat_id] = 'level3'
         await query.edit_message_text(text=utils.get_text(user_id, 'captcha_title', user_ui_lang), reply_markup=utils.get_captcha_keyboard(user_id, user_ui_lang))
-        await context.bot.send_message(chat_id=chat_id, text=".", reply_markup=utils.get_bottom_keyboard('level3', user_id, user_ui_lang))
+        await update_bottom_keyboard(context, chat_id, 'level3', user_id)
     elif query.data == 'dev_types':
         user_nav_state[chat_id] = 'level3'
         await query.edit_message_text(text=utils.get_text(user_id, 'back_msg', user_ui_lang), reply_markup=utils.get_type_keyboard(user_id, user_ui_lang))
-        await context.bot.send_message(chat_id=chat_id, text=".", reply_markup=utils.get_bottom_keyboard('level3', user_id, user_ui_lang))
+        await update_bottom_keyboard(context, chat_id, 'level3', user_id)
     elif query.data == 'captcha_math':
         user_nav_state[chat_id] = 'math'
         await query.edit_message_text(text="▫️", reply_markup=None)
@@ -127,24 +128,23 @@ async def start_math_game(update: Update, context: ContextTypes.DEFAULT_TYPE):
             b = random.randint(1, 9)
     result = a + b
     user_math_state[chat_id] = result
-    await context.bot.send_message(chat_id=chat_id, text=f"请计算：{a} + {b} = ?", reply_markup=utils.get_bottom_keyboard('math', user_id, user_ui_lang))
+    await context.bot.send_message(chat_id=chat_id, text=f"请计算：{a} + {b} = ?")
+    await update_bottom_keyboard(context, chat_id, 'math', user_id)
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     chat_id = update.message.chat_id
     user_text = update.message.text
 
-    # ===== 底部键盘全局导航 =====
     if user_text == '主菜单':
         await show_menu(update, context)
         return
     if user_text == '返回上一级':
         user_nav_state[chat_id] = 'level2'
         await update.message.reply_text(utils.get_text(user_id, 'dev_title', user_ui_lang), reply_markup=utils.get_dev_keyboard(user_id, user_ui_lang))
-        await update.message.reply_text(".", reply_markup=utils.get_bottom_keyboard('level2', user_id, user_ui_lang))
+        await update_bottom_keyboard(context, chat_id, 'level2', user_id)
         return
 
-    # ===== 数学题验证 =====
     if chat_id in user_math_state and user_nav_state.get(chat_id) == 'math':
         correct_answer = user_math_state.pop(chat_id)
         try:
@@ -161,7 +161,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await start_math_game(update, context)
         return
 
-    # ===== AI 对话逻辑 =====
     if user_text == '退出 AI 对话':
         if chat_id in user_conversations: del user_conversations[chat_id]
         await update.message.reply_text("已退出 AI 对话", reply_markup=ReplyKeyboardRemove())
