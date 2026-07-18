@@ -144,34 +144,31 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         expected_pwd = "121100" if target == 'gsai' else "012110"
         
         if user_text == expected_pwd:
-            # 密码正确，清除状态，原地修改为对应的菜单（无任何提示词）
+            # 密码正确，清除状态，并删除“请输入密码”的提示气泡
             target_info = user_pwd_state.pop(chat_id)
+            try:
+                await context.bot.delete_message(chat_id=chat_id, message_id=target_info['msg_id'])
+            except Exception:
+                pass
+            
+            # 直接发出新消息，开启对应功能
             if target == 'gsai':
                 user_conversations[chat_id] = []
-                await context.bot.edit_message_text(
+                # 直接发送一句“有什么可以帮您”，并带底部菜单，开启正常对话
+                await update.message.reply_text(
                     text=utils.get_text(user_id, 'gsai_welcome', user_ui_lang),
-                    chat_id=chat_id,
-                    message_id=target_info['msg_id'],
                     reply_markup=utils.get_chat_reply_keyboard()
                 )
             elif target == 'custom_btn':
-                await context.bot.edit_message_text(
+                await update.message.reply_text(
                     text=utils.get_text(user_id, 'dev_title', user_ui_lang),
-                    chat_id=chat_id,
-                    message_id=target_info['msg_id'],
                     reply_markup=utils.get_dev_keyboard(user_id, user_ui_lang)
                 )
             elif target == 'contact':
-                await context.bot.edit_message_text(
-                    text="请输入您想要联系开发者的内容：",
-                    chat_id=chat_id,
-                    message_id=target_info['msg_id']
-                )
+                await update.message.reply_text(text="请输入您想要联系开发者的内容：")
             elif target == 'setting':
-                await context.bot.edit_message_text(
+                await update.message.reply_text(
                     text=utils.get_text(user_id, 'setting_title', user_ui_lang),
-                    chat_id=chat_id,
-                    message_id=target_info['msg_id'],
                     reply_markup=utils.get_setting_keyboard(user_id, user_ui_lang)
                 )
         else:
