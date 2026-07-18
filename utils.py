@@ -5,7 +5,6 @@ def get_text(user_id, key, user_ui_lang):
     lang_code = user_ui_lang.get(user_id, 'zh')
     return UI_LANGUAGES[lang_code].get(key, key)
 
-# ==================== 内联键盘区域 (消息气泡里的按钮) ====================
 def get_main_keyboard(user_id, user_ui_lang):
     keyboard = [
         [InlineKeyboardButton(get_text(user_id, 'robot_dev', user_ui_lang), callback_data='custom_btn')],
@@ -15,7 +14,6 @@ def get_main_keyboard(user_id, user_ui_lang):
     return InlineKeyboardMarkup(keyboard)
 
 def get_dev_keyboard(user_id, user_ui_lang):
-    # 机器人开发菜单 (第一排人机验证，第二排主菜单 和 类型)
     keyboard = [
         [InlineKeyboardButton(get_text(user_id, 'dev_captcha', user_ui_lang), callback_data='dev_captcha')],
         [InlineKeyboardButton(get_text(user_id, 'back_msg', user_ui_lang), callback_data='back_home'), InlineKeyboardButton(get_text(user_id, 'dev_types', user_ui_lang), callback_data='dev_types')]
@@ -57,7 +55,7 @@ def get_lang_keyboard(user_id, user_ui_lang):
     ]
     return InlineKeyboardMarkup(keyboard)
 
-# ==================== 底部回复键盘区域 (输入框上方，动态生成) ====================
+# 根据当前菜单状态，动态返回不同的底部键盘
 def get_bottom_keyboard(state, user_id, user_ui_lang):
     lang_home = get_text(user_id, 'back_msg', user_ui_lang)
     lang_back = get_text(user_id, 'back_dev_menu', user_ui_lang)
@@ -71,7 +69,8 @@ def get_bottom_keyboard(state, user_id, user_ui_lang):
     elif state == 'ai':
         return ReplyKeyboardMarkup([[lang_home, lang_exit_ai]], resize_keyboard=True, one_time_keyboard=False)
     elif state == 'math':
-        return ReplyKeyboardMarkup([[lang_home, lang_retry_math]], resize_keyboard=True, one_time_keyboard=False)
+        # 三个按钮各占一排
+        return ReplyKeyboardMarkup([[lang_home], [lang_back], [lang_retry_math]], resize_keyboard=True, one_time_keyboard=False)
     return ReplyKeyboardMarkup([[lang_home]], resize_keyboard=True)
 
 async def is_channel_member(bot, user_id, required_channel):
