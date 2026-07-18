@@ -33,6 +33,7 @@ UI_LANGUAGES = {
         'exit_ai': "退出 AI 对话"
     },
     'en': {
+        # 英文版（可以不完全翻译，但为了完整性保留）
         'main_msg': "Bot built by <a href=\"https://t.me/gsyxyc\">Gongshui</a>\n\n-Built-in AI Large Model\n-Multi-language switching\n-Deep integration with <a href=\"https://t.me/gs0z1\">Gongshui World</a> channel\n\nPlease choose a function:", 
         'channel_msg': "Please join the channel to experience the full features", 
         'robot_dev': "Bot Dev", 
