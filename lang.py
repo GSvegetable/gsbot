@@ -21,9 +21,16 @@ UI_LANGUAGES = {
         'check_channel': "请先加入频道才能使用本机器人：", 
         'join_btn': "加入频道", 
         'check_btn': "重新检测",
-        'dev_title': "机器人开发：",
-        'dev_types': "类型", 
-        'dev_captcha': "人机验证", 
+        
+        # ===== 更新后的机器人开发标题 =====
+        'dev_title': "体验最全面的机器人生态\n展示功能均能复刻/修改\n\n开发者 <a href=\"https://t.me/gsyxyc\">@gsyxyc</a>",
+        'dev_captcha': "人机验证",
+        # 新增 9 个默认按钮和 2 个关于按钮
+        'default_2': "默认二", 'default_3': "默认三",
+        'default_4': "默认四", 'default_5': "默认五", 'default_6': "默认六",
+        'default_7': "默认七", 'default_8': "默认八", 'default_9': "默认九",
+        'about_api': "关于api", 'about_key': "关于key",
+        
         'back_dev_menu': "返回上一级",
         'captcha_title': "人机验证：",
         'captcha_math': "数学题验证",
@@ -33,7 +40,6 @@ UI_LANGUAGES = {
         'exit_ai': "退出 AI 对话"
     },
     'en': {
-        # 英文版（可以不完全翻译，但为了完整性保留）
         'main_msg': "Bot built by <a href=\"https://t.me/gsyxyc\">Gongshui</a>\n\n-Built-in AI Large Model\n-Multi-language switching\n-Deep integration with <a href=\"https://t.me/gs0z1\">Gongshui World</a> channel\n\nPlease choose a function:", 
         'channel_msg': "Please join the channel to experience the full features", 
         'robot_dev': "Bot Dev", 
@@ -55,9 +61,12 @@ UI_LANGUAGES = {
         'check_channel': "Please join the channel first to use this bot:", 
         'join_btn': "Join Channel", 
         'check_btn': "Re-check",
-        'dev_title': "Bot Dev:",
-        'dev_types': "Types", 
-        'dev_captcha': "Captcha", 
+        'dev_title': "Experience the most comprehensive bot ecosystem\nAll displayed features can be cloned/modified\n\nDeveloper <a href=\"https://t.me/gsyxyc\">@gsyxyc</a>",
+        'dev_captcha': "Captcha",
+        'default_2': "Default 2", 'default_3': "Default 3",
+        'default_4': "Default 4", 'default_5': "Default 5", 'default_6': "Default 6",
+        'default_7': "Default 7", 'default_8': "Default 8", 'default_9': "Default 9",
+        'about_api': "About API", 'about_key': "About Key",
         'back_dev_menu': "Back",
         'captcha_title': "Captcha:",
         'captcha_math': "Math Captcha",
