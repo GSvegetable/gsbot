@@ -4,7 +4,7 @@ UI_LANGUAGES = {
         'channel_msg': "请先加入频道体验完整功能", 
         'robot_dev': "机器人开发", 
         'contact_btn': "双向", 
-        'gsai': "AI",                         # 从“交互”改成了 AI
+        'gsai': "AI", 
         'setting': "设置",
         'setting_title': "设置中心：", 
         'setting_lang': "更改语言", 
@@ -13,7 +13,7 @@ UI_LANGUAGES = {
         'lang_zh': "中文", 
         'lang_en': "English", 
         'lang_back': "⬅️ 返回",
-        'back_msg': "返回主菜单",
+        'back_msg': "主菜单",
         'gsai_welcome': "有什么可以帮您", 
         'gsai_thinking': "🧠 正在思考...",
         'lang_sel_success': "✅ 已切换为中文界面", 
@@ -28,14 +28,16 @@ UI_LANGUAGES = {
         'captcha_title': "人机验证：",
         'captcha_math': "数学题验证",
         'correct_msg': "答对了",
-        'incorrect_msg': "答错了"
+        'incorrect_msg': "答错了",
+        'retry_math': "重新回答",
+        'exit_ai': "退出 AI 对话"
     },
     'en': {
         'main_msg': "Bot built by <a href=\"https://t.me/gsyxyc\">Gongshui</a>\n\n-Built-in AI Large Model\n-Multi-language switching\n-Deep integration with <a href=\"https://t.me/gs0z1\">Gongshui World</a> channel\n\nPlease choose a function:", 
         'channel_msg': "Please join the channel to experience the full features", 
         'robot_dev': "Bot Dev", 
         'contact_btn': "Contact", 
-        'gsai': "AI",                         # 英文版也统一改成 AI
+        'gsai': "AI", 
         'setting': "Settings",
         'setting_title': "Settings Center:", 
         'setting_lang': "Change Language", 
@@ -44,7 +46,7 @@ UI_LANGUAGES = {
         'lang_zh': "Chinese", 
         'lang_en': "English", 
         'lang_back': "⬅️ Back",
-        'back_msg': "Back to Home",
+        'back_msg': "Home",
         'gsai_welcome': "How can I help you", 
         'gsai_thinking': "🧠 Thinking...",
         'lang_sel_success': "✅ Switched to Chinese", 
@@ -59,6 +61,8 @@ UI_LANGUAGES = {
         'captcha_title': "Captcha:",
         'captcha_math': "Math Captcha",
         'correct_msg': "Correct!",
-        'incorrect_msg': "Incorrect!"
+        'incorrect_msg': "Incorrect!",
+        'retry_math': "Retry",
+        'exit_ai': "Exit AI"
     }
 }
