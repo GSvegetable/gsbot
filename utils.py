@@ -5,7 +5,7 @@ def get_text(user_id, key, user_ui_lang):
     lang_code = user_ui_lang.get(user_id, 'zh')
     return UI_LANGUAGES[lang_code].get(key, key)
 
-# 主页键盘
+# ==================== 内联键盘区域 (消息气泡里的按钮) ====================
 def get_main_keyboard(user_id, user_ui_lang):
     keyboard = [
         [InlineKeyboardButton(get_text(user_id, 'robot_dev', user_ui_lang), callback_data='custom_btn')],
@@ -14,43 +14,11 @@ def get_main_keyboard(user_id, user_ui_lang):
     ]
     return InlineKeyboardMarkup(keyboard)
 
-# 机器人开发子菜单
 def get_dev_keyboard(user_id, user_ui_lang):
+    # 机器人开发菜单 (第一排人机验证，第二排主菜单 和 类型)
     keyboard = [
-        [InlineKeyboardButton(get_text(user_id, 'dev_types', user_ui_lang), callback_data='dev_types')],
         [InlineKeyboardButton(get_text(user_id, 'dev_captcha', user_ui_lang), callback_data='dev_captcha')],
-        [InlineKeyboardButton(get_text(user_id, 'back_msg', user_ui_lang), callback_data='back_home')]
-    ]
-    return InlineKeyboardMarkup(keyboard)
-
-# “类型”菜单（8个功能 + 返回上一级 + 返回主菜单）
-def get_type_keyboard(user_id, user_ui_lang):
-    funcs = [("双向", 'contact'), ("交互", 'gsai'), ("设置", 'setting'), ("群管", 'group_manage'), ("查询", 'query'), ("资源", 'resource'), ("签到", 'checkin'), ("AI", 'ai_sub')]
-    keyboard = []
-    for i in range(0, len(funcs), 2):
-        row = [InlineKeyboardButton(funcs[i][0], callback_data=funcs[i][1])]
-        if i + 1 < len(funcs):
-            row.append(InlineKeyboardButton(funcs[i+1][0], callback_data=funcs[i+1][1]))
-        keyboard.append(row)
-    # 增加返回上一级和返回主菜单
-    keyboard.append([InlineKeyboardButton(get_text(user_id, 'back_dev_menu', user_ui_lang), callback_data='back_dev_menu')])
-    keyboard.append([InlineKeyboardButton(get_text(user_id, 'back_msg', user_ui_lang), callback_data='back_home')])
-    return InlineKeyboardMarkup(keyboard)
-
-# 人机验证菜单
-def get_captcha_keyboard(user_id, user_ui_lang):
-    keyboard = [
-        [InlineKeyboardButton(get_text(user_id, 'captcha_math', user_ui_lang), callback_data='captcha_math')],
-        [InlineKeyboardButton(get_text(user_id, 'back_dev_menu', user_ui_lang), callback_data='back_dev_menu')],
-        [InlineKeyboardButton(get_text(user_id, 'back_msg', user_ui_lang), callback_data='back_home')] # 加了返回主菜单
-    ]
-    return InlineKeyboardMarkup(keyboard)
-
-# 答题结果键盘（无论对错，返回上一级 + 返回主菜单）
-def get_math_result_keyboard(user_id, user_ui_lang):
-    keyboard = [
-        [InlineKeyboardButton(get_text(user_id, 'back_dev_menu', user_ui_lang), callback_data='back_dev_menu')],
-        [InlineKeyboardButton(get_text(user_id, 'back_msg', user_ui_lang), callback_data='back_home')]
+        [InlineKeyboardButton(get_text(user_id, 'back_msg', user_ui_lang), callback_data='back_home'), InlineKeyboardButton(get_text(user_id, 'dev_types', user_ui_lang), callback_data='dev_types')]
     ]
     return InlineKeyboardMarkup(keyboard)
 
@@ -61,11 +29,18 @@ def get_setting_keyboard(user_id, user_ui_lang):
     ]
     return InlineKeyboardMarkup(keyboard)
 
-def get_lang_keyboard(user_id, user_ui_lang):
-    keyboard = [
-        [InlineKeyboardButton(get_text(user_id, 'lang_zh', user_ui_lang), callback_data='lang_zh'), InlineKeyboardButton(get_text(user_id, 'lang_en', user_ui_lang), callback_data='lang_en')],
-        [InlineKeyboardButton(get_text(user_id, 'lang_back', user_ui_lang), callback_data='lang_back')]
-    ]
+def get_type_keyboard(user_id, user_ui_lang):
+    funcs = [("双向", 'contact'), ("AI", 'gsai'), ("设置", 'setting'), ("群管", 'group_manage'), ("查询", 'query'), ("资源", 'resource'), ("签到", 'checkin'), ("AI", 'ai_sub')]
+    keyboard = []
+    for i in range(0, len(funcs), 2):
+        row = [InlineKeyboardButton(funcs[i][0], callback_data=funcs[i][1])]
+        if i + 1 < len(funcs): 
+            row.append(InlineKeyboardButton(funcs[i+1][0], callback_data=funcs[i+1][1]))
+        keyboard.append(row)
+    return InlineKeyboardMarkup(keyboard)
+
+def get_captcha_keyboard(user_id, user_ui_lang):
+    keyboard = [[InlineKeyboardButton(get_text(user_id, 'captcha_math', user_ui_lang), callback_data='captcha_math')]]
     return InlineKeyboardMarkup(keyboard)
 
 def get_channel_keyboard(user_id, user_ui_lang, channel_link):
@@ -75,8 +50,29 @@ def get_channel_keyboard(user_id, user_ui_lang, channel_link):
     ]
     return InlineKeyboardMarkup(keyboard)
 
-def get_chat_reply_keyboard():
-    return ReplyKeyboardMarkup([['退出 AI 对话']], resize_keyboard=True)
+def get_lang_keyboard(user_id, user_ui_lang):
+    keyboard = [
+        [InlineKeyboardButton(get_text(user_id, 'lang_zh', user_ui_lang), callback_data='lang_zh'), InlineKeyboardButton(get_text(user_id, 'lang_en', user_ui_lang), callback_data='lang_en')],
+        [InlineKeyboardButton(get_text(user_id, 'lang_back', user_ui_lang), callback_data='lang_back')]
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+# ==================== 底部回复键盘区域 (输入框上方，动态生成) ====================
+def get_bottom_keyboard(state, user_id, user_ui_lang):
+    lang_home = get_text(user_id, 'back_msg', user_ui_lang)
+    lang_back = get_text(user_id, 'back_dev_menu', user_ui_lang)
+    lang_exit_ai = get_text(user_id, 'exit_ai', user_ui_lang)
+    lang_retry_math = get_text(user_id, 'retry_math', user_ui_lang)
+    
+    if state == 'home' or state == 'level2':
+        return ReplyKeyboardMarkup([[lang_home]], resize_keyboard=True, one_time_keyboard=False)
+    elif state == 'level3':
+        return ReplyKeyboardMarkup([[lang_home, lang_back]], resize_keyboard=True, one_time_keyboard=False)
+    elif state == 'ai':
+        return ReplyKeyboardMarkup([[lang_home, lang_exit_ai]], resize_keyboard=True, one_time_keyboard=False)
+    elif state == 'math':
+        return ReplyKeyboardMarkup([[lang_home, lang_retry_math]], resize_keyboard=True, one_time_keyboard=False)
+    return ReplyKeyboardMarkup([[lang_home]], resize_keyboard=True)
 
 async def is_channel_member(bot, user_id, required_channel):
     try:
