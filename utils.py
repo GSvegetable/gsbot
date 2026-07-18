@@ -13,10 +13,23 @@ def get_main_keyboard(user_id, user_ui_lang):
     ]
     return InlineKeyboardMarkup(keyboard)
 
+# ===== 全新重构的机器人开发菜单（3x3 + 1x2 排布） =====
 def get_dev_keyboard(user_id, user_ui_lang):
     keyboard = [
-        [InlineKeyboardButton(get_text(user_id, 'dev_captcha', user_ui_lang), callback_data='dev_captcha')],
-        [InlineKeyboardButton(get_text(user_id, 'back_msg', user_ui_lang), callback_data='back_home'), InlineKeyboardButton(get_text(user_id, 'dev_types', user_ui_lang), callback_data='dev_types')]
+        [InlineKeyboardButton(get_text(user_id, 'dev_captcha', user_ui_lang), callback_data='dev_captcha'),
+         InlineKeyboardButton(get_text(user_id, 'default_2', user_ui_lang), callback_data='default_2'),
+         InlineKeyboardButton(get_text(user_id, 'default_3', user_ui_lang), callback_data='default_3')],
+        
+        [InlineKeyboardButton(get_text(user_id, 'default_4', user_ui_lang), callback_data='default_4'),
+         InlineKeyboardButton(get_text(user_id, 'default_5', user_ui_lang), callback_data='default_5'),
+         InlineKeyboardButton(get_text(user_id, 'default_6', user_ui_lang), callback_data='default_6')],
+        
+        [InlineKeyboardButton(get_text(user_id, 'default_7', user_ui_lang), callback_data='default_7'),
+         InlineKeyboardButton(get_text(user_id, 'default_8', user_ui_lang), callback_data='default_8'),
+         InlineKeyboardButton(get_text(user_id, 'default_9', user_ui_lang), callback_data='default_9')],
+        
+        [InlineKeyboardButton(get_text(user_id, 'about_api', user_ui_lang), callback_data='about_api'),
+         InlineKeyboardButton(get_text(user_id, 'about_key', user_ui_lang), callback_data='about_key')]
     ]
     return InlineKeyboardMarkup(keyboard)
 
@@ -48,20 +61,23 @@ def get_lang_keyboard(user_id, user_ui_lang):
     keyboard = [[InlineKeyboardButton(get_text(user_id, 'lang_zh', user_ui_lang), callback_data='lang_zh'), InlineKeyboardButton(get_text(user_id, 'lang_en', user_ui_lang), callback_data='lang_en')], [InlineKeyboardButton(get_text(user_id, 'lang_back', user_ui_lang), callback_data='lang_back')]]
     return InlineKeyboardMarkup(keyboard)
 
-# 底部键盘回复区域（强制【每个按钮独占一排】）
+# ===== 底部键盘严格按照 5 种状态划分（所有按钮竖向排列） =====
 def get_bottom_keyboard(state, user_id, user_ui_lang):
     lang_home = get_text(user_id, 'back_msg', user_ui_lang)
     lang_back = get_text(user_id, 'back_dev_menu', user_ui_lang)
     lang_exit_ai = get_text(user_id, 'exit_ai', user_ui_lang)
     lang_retry_math = get_text(user_id, 'retry_math', user_ui_lang)
     
-    # 每一行一个 list，严格保证全竖排
-    if state == 'home' or state == 'level2':
+    # 状态 1 & 5：主菜单页面
+    if state == 'home':
         return ReplyKeyboardMarkup([[lang_home]], resize_keyboard=True, one_time_keyboard=False)
-    elif state == 'level3':
+    # 状态 2：二级/三级菜单
+    elif state == 'level2' or state == 'level3':
         return ReplyKeyboardMarkup([[lang_home], [lang_back]], resize_keyboard=True, one_time_keyboard=False)
+    # 状态 3：AI 对话
     elif state == 'ai':
-        return ReplyKeyboardMarkup([[lang_home], [lang_exit_ai]], resize_keyboard=True, one_time_keyboard=False)
+        return ReplyKeyboardMarkup([[lang_home], [lang_back], [lang_exit_ai]], resize_keyboard=True, one_time_keyboard=False)
+    # 状态 4：数学题验证
     elif state == 'math':
         return ReplyKeyboardMarkup([[lang_home], [lang_back], [lang_retry_math]], resize_keyboard=True, one_time_keyboard=False)
     return ReplyKeyboardMarkup([[lang_home]], resize_keyboard=True)
